@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apps-ingress
+  labels:
+    app.kubernetes.io/component: apps
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: placeholder.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: apps
+                port:
+                  number: 8080

@@ -1,0 +1,6 @@
+# يوجّه لـ Kustomize overlay — المصدر الحقيقي في apps/overlays/production
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../apps/overlays/production

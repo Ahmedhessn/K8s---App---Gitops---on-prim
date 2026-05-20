@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vprofile-dev
+  labels:
+    app.kubernetes.io/name: vprofile
+    environment: development

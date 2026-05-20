@@ -1,0 +1,11 @@
+# أسرار — لا ترفعها أبداً
+*.pem
+*.key
+.env
+.env.*
+secrets/
+**/secrets.yaml
+
+# مخرجات مؤقتة
+.render/
+*.rendered.yaml
