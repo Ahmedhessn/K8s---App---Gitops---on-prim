@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memcached
+  labels:
+    app.kubernetes.io/component: memcached
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: memcached
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: memcached
+    spec:
+      containers:
+        - name: memcached
+          image: 01061875164/memcached:20260430-0312-02e09cc
+          imagePullPolicy: IfNotPresent
+          args:
+            - -m
+            - "256"
+            - -I
+            - 2m
+          ports:
+            - containerPort: 11211
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 25m
+              memory: 256Mi
+            limits:
+              cpu: 200m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: 11211
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3

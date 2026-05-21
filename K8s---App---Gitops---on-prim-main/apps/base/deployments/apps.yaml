@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apps
+  labels:
+    app.kubernetes.io/component: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apps
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: apps
+    spec:
+      containers:
+        - name: apps
+          image: 01061875164/tomcatapp:20260430-0307-02e09cc
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: DB_HOST
+              value: mysql
+            - name: MEMCACHED_HOST
+              value: memcached
+            - name: RABBITMQ_HOST
+              value: rabbitmq
+          resources:
+            requests:
+              cpu: 150m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            failureThreshold: 3

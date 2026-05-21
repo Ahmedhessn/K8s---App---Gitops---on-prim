@@ -6,7 +6,10 @@
 
 ```
 apps/
-  base/                    # Services + Ingress مشترك (مصدر واحد)
+  base/
+    deployments/           # apps, memcached, mysql, rabbitmq
+    services.yaml
+    ingress.yaml
   overlays/
     development/           # namespace: vprofile-dev, host: dev.el30mda.local
     production/            # namespace: vprofile, host: el30mda.local
@@ -42,7 +45,11 @@ kubectl apply -f cluster-setup/
 
 > **Services:** بدون `clusterIP` في Git — الكلاستر يحتفظ بالـ IP الحالي.
 
-> **Deployments:** ليست في هذا الريبو — الـ Services تفترض Pods موجودة (`app: apps`, …).
+> **Deployments:** في `apps/base/deployments/` — صور من الكلاستر الشغال.
+>
+> **mysql-secret** و **mysql-pvc:** لازم يكونوا موجودين على الكلاستر (مش في Git — لا ترفع أسرار).
+>
+> **production فقط:** `rabbitmq-patch.yaml` (nodeSelector `worker1` + `RABBITMQ_MNESIA_DIR`).
 
 ## dev vs production
 
@@ -55,7 +62,7 @@ kubectl apply -f cluster-setup/
 ## Kustomize — إزاي يشتغل
 
 ```
-base (services + ingress)
+base (deployments + services + ingress)
     ↓
 overlay يضيف:
   - namespace لكل الموارد
@@ -65,7 +72,21 @@ overlay يضيف:
 
 **مهم:** `includeSelectors: false` عشان label `environment` ما يتضافش على `selector` ويكسر ربط الـ Pods.
 
+## قبل apply الـ Deployments
+
+```bash
+# تأكد إن secret و pvc موجودين
+kubectl get secret mysql-secret -n vprofile
+kubectl get pvc mysql-pvc -n vprofile
+
+# قارن dev مع prod (لو rabbitmq مختلف)
+diff <(kubectl get deploy rabbitmq -n vprofile -o yaml) \
+     <(kubectl get deploy rabbitmq -n vprofile-dev -o yaml) | head -40
+
+kubectl diff -k apps/overlays/production/
+```
+
 ## الخطوة الجاية (اختياري)
 
-- سحب `Deployment` manifests من الكلاستر إلى `apps/base`
 - Argo CD `Application` يشير لـ `apps/overlays/production`
+- Sealed Secrets لـ `mysql-secret` بدل الاعتماد على الكلاستر فقط

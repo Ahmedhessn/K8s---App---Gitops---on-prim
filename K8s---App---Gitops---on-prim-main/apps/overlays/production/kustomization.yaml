@@ -13,6 +13,7 @@ labels:
     includeSelectors: false
 
 patches:
+  - path: rabbitmq-patch.yaml
   - target:
       kind: Ingress
       name: apps-ingress

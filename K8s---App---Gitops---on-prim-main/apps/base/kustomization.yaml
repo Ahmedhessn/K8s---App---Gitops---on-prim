@@ -4,6 +4,10 @@ kind: Kustomization
 resources:
   - services.yaml
   - ingress.yaml
+  - deployments/apps.yaml
+  - deployments/memcached.yaml
+  - deployments/mysql.yaml
+  - deployments/rabbitmq.yaml
 
 labels:
   - pairs:
