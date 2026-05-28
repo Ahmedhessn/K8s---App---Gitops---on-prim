@@ -5,13 +5,11 @@ metadata:
 spec:
   template:
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: worker1
       containers:
         - name: rabbitmq
           env:
             - name: RABBITMQ_MNESIA_DIR
-              value: /var/lib/rabbitmq/mnesia/clean_prod_v1
+              value: /var/lib/rabbitmq/mnesia/clean_dev_v1
           resources:
             requests:
-              memory: 512Mi
+              memory: 256Mi
