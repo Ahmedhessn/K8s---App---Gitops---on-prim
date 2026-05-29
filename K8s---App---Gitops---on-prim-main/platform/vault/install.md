@@ -2,18 +2,32 @@
 
 > **لو `kubectl get svc -A | grep vault` فاضي** → Vault مش موجود. ESO مش هيعرف يشتغل قبل التثبيت.
 
-## أسرع طريقة (سكربت واحد)
+## ⚠️ مسار الريبو (مهم على jump)
+
+بعد `git clone` الملفات غالباً تحت مجلد فرعي:
 
 ```bash
-cd ~/K8s-App-Gitops-on-prem/K8s---App---Gitops---on-prim-main
-chmod +x platform/vault/setup-vault.sh
-./platform/vault/setup-vault.sh
+pwd
+# ~/K8s-App-Gitops-on-prem/K8s---App---Gitops---on-prim-main
+
+ls platform/vault/values-dev.yaml
+# → No such file
+
+ls K8s---App---Gitops---on-prim-main/platform/vault/values-dev.yaml
+# → موجود
 ```
 
-لو `platform/` مش موجود في المسار الحالي:
+**ادخل المجلد الفرعي أولاً:**
 
 ```bash
 cd K8s---App---Gitops---on-prim-main
+```
+
+## أسرع طريقة (سكربت واحد)
+
+```bash
+cd ~/K8s-App-Gitops-on-prem/K8s---App---Gitops---on-prim-main/K8s---App---Gitops---on-prim-main
+chmod +x platform/vault/setup-vault.sh
 ./platform/vault/setup-vault.sh
 ```
 
@@ -128,11 +142,34 @@ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://
 sudo apt update && sudo apt install -y vault
 ```
 
-## خطأ webhook ESO
+## خطأ webhook ESO (context deadline exceeded)
+
+`cert-controller` و `webhook` لازم **1/1 Ready** — لو 0/1 كل apply بيفشل.
 
 ```bash
 kubectl get pods -n external-secrets
-kubectl rollout restart deployment -n external-secrets
-kubectl rollout status deployment -n external-secrets --timeout=120s
-kubectl apply -k apps/overlays/production/
+kubectl describe pod -n external-secrets -l app.kubernetes.io/name=external-secrets-webhook
+kubectl logs -n external-secrets -l app.kubernetes.io/name=external-secrets-cert-controller --tail=30
+```
+
+**إعادة تثبيت ESO:**
+
+```bash
+helm upgrade --install external-secrets external-secrets/external-secrets \
+  -n external-secrets \
+  --set installCRDs=true \
+  --wait --timeout 5m
+
+kubectl get pods -n external-secrets -w
+# استنى: 3 pods كلهم 1/1 Running
+```
+
+**تطبيق مؤقت بدون webhook (لو لسه عالق):**
+
+```bash
+kubectl patch secretstore vault-backend -n vprofile --type=merge --validate=false -p '{
+  "spec": {"provider": {"vault": {"server": "http://vault.vault.svc.cluster.local:8200"}}}
+}'
+
+kubectl apply -k apps/overlays/production/ --validate=false
 ```
