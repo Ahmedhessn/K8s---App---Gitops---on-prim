@@ -2,6 +2,22 @@
 
 هذا الدليل يكمّل manifests في `apps/overlays/*/vault/`. القيم الحساسة تبقى في Vault فقط.
 
+## 0. Vault لازم يكون شغال أولاً
+
+```bash
+kubectl get svc -A | grep -i vault   # لو فاضي → Vault مش موجود
+```
+
+**ثبّت Vault:** [platform/vault/install.md](./install.md)
+
+بعد التثبيت، غيّر `server` في `secret-store.yaml` من placeholder إلى:
+
+```yaml
+server: http://vault.vault.svc.cluster.local:8200   # dev mode
+```
+
+`vault.el30mda.local` **مش موجود** في DNS — لا تستخدمه إلا بعد إضافته في CoreDNS أو DNS خارجي.
+
 ## 1. تفعيل KV v2 (مثال mount اسمه `secret`)
 
 ```bash

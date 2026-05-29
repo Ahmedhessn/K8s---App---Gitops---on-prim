@@ -1,0 +1,24 @@
+# Vault Helm — dev/lab on-prem (TLS معطّل داخل الكلاستر)
+# helm install vault hashicorp/vault -n vault -f platform/vault/values-dev.yaml
+
+global:
+  enabled: true
+  tlsDisable: true
+
+server:
+  dev:
+    enabled: true
+    devRootToken: "root"
+  standalone:
+    enabled: false
+  ha:
+    enabled: false
+  service:
+    type: ClusterIP
+    port: 8200
+
+injector:
+  enabled: false
+
+ui:
+  enabled: true

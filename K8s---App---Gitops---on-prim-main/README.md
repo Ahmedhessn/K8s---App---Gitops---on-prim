@@ -79,9 +79,11 @@ overlay يضيف:
 
 ## Vault + External Secrets (mysql-secret)
 
-1. ثبّت ESO: `platform/external-secrets/README.md`
-2. اضبط Vault: `platform/vault/README.md` (KV + kubernetes auth + roles)
-3. عدّل `server` في `apps/overlays/*/vault/secret-store.yaml`
+**متطلب:** Vault شغال على الكلاستر — `platform/vault/install.md`
+
+1. ثبّت Vault: `platform/vault/install.md`
+2. ثبّت ESO: `platform/external-secrets/README.md`
+3. اضبط KV + kubernetes auth (أوامر في `install.md`)
 4. `kubectl apply -k apps/overlays/production/`
 
 ```bash
