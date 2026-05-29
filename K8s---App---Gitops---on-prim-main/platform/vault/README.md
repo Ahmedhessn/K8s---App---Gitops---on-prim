@@ -98,3 +98,80 @@ Vault KV (secret/vprofile/mysql)
     → Kubernetes Secret mysql-secret
     → Deployment mysql (envFrom)
 ```
+
+## استكشاف الأخطاء — SecretStore مش Ready
+
+### 1. شوف سبب الفشل بالظبط
+
+```bash
+kubectl describe secretstore vault-backend -n vprofile
+kubectl logs -n external-secrets -l app.kubernetes.io/name=external-secrets --tail=50
+```
+
+في `Status.Conditions` هتلاقي رسالة زي:
+- `connection refused` / `no such host` → عنوان Vault غلط أو مش reachable من الكلاستر
+- `certificate signed by unknown authority` → TLS (شوف §3)
+- `permission denied` / `invalid role` → Kubernetes auth أو role مش موجود في Vault
+- `secret not found` → الـ SecretStore شغال؛ المشكلة في path `vprofile/mysql` (§2)
+
+### 2. تأكد إن Vault فيه البيانات
+
+```bash
+vault kv get secret/vprofile/mysql
+vault read auth/kubernetes/role/vprofile-mysql
+vault policy read vprofile-mysql
+```
+
+### 3. TLS (on-prem شائع)
+
+لو Vault بشهادة self-signed، أضف تحت `server:` في `secret-store.yaml`:
+
+```yaml
+      caProvider:
+        type: Secret
+        name: vault-ca
+        key: ca.crt
+        namespace: vprofile
+```
+
+أو مؤقتاً للاختبار فقط:
+
+```yaml
+      # skipTLSVerify: true
+```
+
+### 4. تأكد إن الـ role يطابق الـ ServiceAccount
+
+| Vault role | SA | Namespace |
+|------------|-----|-----------|
+| `vprofile-mysql` | `vault-mysql` | `vprofile` |
+| `vprofile-dev-mysql` | `vault-mysql` | `vprofile-dev` |
+
+```bash
+kubectl get sa vault-mysql -n vprofile
+```
+
+### 5. اختبار من داخل الكلاستر
+
+```bash
+kubectl run vault-test -n vprofile --rm -it --restart=Never \
+  --image=curlimages/curl -- \
+  curl -sk https://vault.el30mda.local:8200/v1/sys/health
+```
+
+### 6. أسماء الملفات في الريبو
+
+| الملف | الغرض |
+|-------|--------|
+| `secret-store.yaml` | اتصال Vault |
+| `mysql-external-secret.yaml` | مزامنة mysql-secret (مش `external-secret.yaml`) |
+| `serviceaccount.yaml` | SA للـ Kubernetes auth |
+
+### 7. بعد الإصلاح
+
+```bash
+kubectl apply -k apps/overlays/production/
+kubectl get secretstore vault-backend -n vprofile
+kubectl get externalsecret mysql-secret -n vprofile
+kubectl get secret mysql-secret -n vprofile
+```
