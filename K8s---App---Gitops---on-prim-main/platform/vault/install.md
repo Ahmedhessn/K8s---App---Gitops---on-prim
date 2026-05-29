@@ -2,33 +2,54 @@
 
 > **لو `kubectl get svc -A | grep vault` فاضي** → Vault مش موجود. ESO مش هيعرف يشتغل قبل التثبيت.
 
-## ⚠️ مسار الريبو (مهم على jump)
-
-بعد `git clone` الملفات غالباً تحت مجلد فرعي:
+## ⚠️ مسار الريبو على jump
 
 ```bash
 pwd
-# ~/K8s-App-Gitops-on-prem/K8s---App---Gitops---on-prim-main
+# /home/ahmed/K8s-App-Gitops-on-prem/K8s---App---Gitops---on-prim-main
 
-ls platform/vault/values-dev.yaml
-# → No such file
-
-ls K8s---App---Gitops---on-prim-main/platform/vault/values-dev.yaml
-# → موجود
+ls platform/vault/values-dev.yaml   # ← هنا
 ```
 
-**ادخل المجلد الفرعي أولاً:**
+**مفيش** مجلد `K8s---App---Gitops---on-prim-main/` جوه — ده بس في GitHub paths.
 
 ```bash
-cd K8s---App---Gitops---on-prim-main
-```
-
-## أسرع طريقة (سكربت واحد)
-
-```bash
-cd ~/K8s-App-Gitops-on-prem/K8s---App---Gitops---on-prim-main/K8s---App---Gitops---on-prim-main
-chmod +x platform/vault/setup-vault.sh
+cd ~/K8s-App-Gitops-on-prem/K8s---App---Gitops---on-prim-main
 ./platform/vault/setup-vault.sh
+```
+
+## ⚠️ متعملش Ctrl+C أثناء helm
+
+`helm upgrade --install ... --wait` بياخد 1–3 دقائق. Ctrl+C يقطع التثبيت ويخلي namespace فاضي.
+
+## ⚠️ خطأ `etcdserver: request timed out`
+
+ده **مش** خطأ Vault — ده **control plane / etcd** على الكلاستر بطيء أو تحت ضغط.
+
+```bash
+kubectl get nodes
+kubectl get pods -n kube-system | grep -E 'etcd|apiserver'
+kubectl get events -A --sort-by='.lastTimestamp' | tail -20
+```
+
+**على control plane node(s):**
+```bash
+df -h                    # disk full؟
+free -h                  # RAM
+sudo crictl ps | grep etcd
+```
+
+**حلول شائعة:**
+- Disk > 85% على control plane → نظّف (`journalctl --vacuum`, old images)
+- etcd pod مش Running → `kubectl describe pod -n kube-system -l component=etcd`
+- Worker nodes NotReady → أصلحهم الأول
+- **استنى 2–3 دقائق** وجرب helm تاني (مرة واحدة، بدون Ctrl+C)
+
+```bash
+helm upgrade --install vault hashicorp/vault \
+  -n vault \
+  -f platform/vault/values-dev.yaml \
+  --wait --timeout 10m
 ```
 
 ## يدوي — أمر واحد في كل مرة (مهم: متعملش Ctrl+C)
@@ -164,12 +185,24 @@ kubectl get pods -n external-secrets -w
 # استنى: 3 pods كلهم 1/1 Running
 ```
 
-**تطبيق مؤقت بدون webhook (لو لسه عالق):**
+**تطبيق مؤقت بدون webhook** (kubectl patch ما بيدعم `--validate`):
 
 ```bash
-kubectl patch secretstore vault-backend -n vprofile --type=merge --validate=false -p '{
-  "spec": {"provider": {"vault": {"server": "http://vault.vault.svc.cluster.local:8200"}}}
-}'
+# 1) شوف webhooks
+kubectl get validatingwebhookconfiguration | grep external
 
-kubectl apply -k apps/overlays/production/ --validate=false
+# 2) عطّل مؤقتاً (أعد تثبيت ESO بعدها ليرجعوا)
+kubectl delete validatingwebhookconfiguration \
+  secretstore-validate \
+  externalsecret-validate 2>/dev/null || true
+
+# 3) عدّل secret-store مباشرة
+kubectl edit secretstore vault-backend -n vprofile
+# غيّر server إلى: http://vault.vault.svc.cluster.local:8200
+
+kubectl apply -k apps/overlays/production/
+
+# 4) أعد ESO عشان webhooks ترجع
+helm upgrade --install external-secrets external-secrets/external-secrets \
+  -n external-secrets --set installCRDs=true --wait --timeout 10m
 ```
