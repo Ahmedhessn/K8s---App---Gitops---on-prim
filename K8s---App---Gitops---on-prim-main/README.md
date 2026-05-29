@@ -15,6 +15,9 @@ apps/
     production/            # namespace: vprofile, host: el30mda.local
     monitoring/            # Grafana + Prometheus ingress
 cluster-setup/             # metrics-server, RBAC
+platform/
+  vault/                   # إعداد Vault (KV, policies, k8s auth)
+  external-secrets/        # تثبيت ESO
 environments/              # اختصار — يوجّه لـ apps/overlays/*
 scripts/render.ps1         # بناء YAML للمراجعة
 ```
@@ -47,7 +50,9 @@ kubectl apply -f cluster-setup/
 
 > **Deployments:** في `apps/base/deployments/` — صور من الكلاستر الشغال.
 >
-> **mysql-secret** و **mysql-pvc:** لازم يكونوا موجودين على الكلاستر (مش في Git — لا ترفع أسرار).
+> **mysql-secret:** يُدار عبر **Vault + External Secrets** (`apps/overlays/*/vault/`). راجع `platform/vault/README.md`.
+>
+> **mysql-pvc:** لازم يكون موجود على الكلاستر (مش في Git).
 >
 > **production فقط:** `rabbitmq-patch.yaml` (nodeSelector `worker1` + `RABBITMQ_MNESIA_DIR`).
 
@@ -72,10 +77,22 @@ overlay يضيف:
 
 **مهم:** `includeSelectors: false` عشان label `environment` ما يتضافش على `selector` ويكسر ربط الـ Pods.
 
+## Vault + External Secrets (mysql-secret)
+
+1. ثبّت ESO: `platform/external-secrets/README.md`
+2. اضبط Vault: `platform/vault/README.md` (KV + kubernetes auth + roles)
+3. عدّل `server` في `apps/overlays/*/vault/secret-store.yaml`
+4. `kubectl apply -k apps/overlays/production/`
+
+```bash
+kubectl get externalsecret,secretstore -n vprofile
+kubectl describe externalsecret mysql-secret -n vprofile
+```
+
 ## قبل apply الـ Deployments
 
 ```bash
-# تأكد إن secret و pvc موجودين
+# تأكد إن ESO مزامن secret و pvc موجود
 kubectl get secret mysql-secret -n vprofile
 kubectl get pvc mysql-pvc -n vprofile
 
@@ -89,4 +106,4 @@ kubectl diff -k apps/overlays/production/
 ## الخطوة الجاية (اختياري)
 
 - Argo CD `Application` يشير لـ `apps/overlays/production`
-- Sealed Secrets لـ `mysql-secret` بدل الاعتماد على الكلاستر فقط
+- أسرار إضافية (RabbitMQ، registry) بنفس نمط `ExternalSecret`

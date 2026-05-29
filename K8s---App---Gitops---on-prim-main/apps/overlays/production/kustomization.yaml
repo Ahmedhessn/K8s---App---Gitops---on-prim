@@ -6,6 +6,9 @@ namespace: vprofile
 resources:
   - ../../base
   - namespace.yaml
+  - vault/serviceaccount.yaml
+  - vault/secret-store.yaml
+  - vault/mysql-external-secret.yaml
 
 labels:
   - pairs:

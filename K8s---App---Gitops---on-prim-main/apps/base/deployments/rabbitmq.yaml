@@ -28,20 +28,22 @@ spec:
               protocol: TCP
             - containerPort: 15672
               protocol: TCP
+          # 1. زودنا الـ Requests عشان يقوم مستريح وميموتش من الـ OOM Killer
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 200m
+              memory: 512Mi
             limits:
               cpu: "1"
               memory: 1024Mi
+          # 2. ظبطنا الـ Probe بأرقام منطقية وسريعة الاستجابة
           startupProbe:
             exec:
               command:
                 - rabbitmq-diagnostics
                 - -q
                 - ping
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            failureThreshold: 45
-            timeoutSeconds: 60
+            initialDelaySeconds: 15  # هيستنى 15 ثانية بس ويبدأ يجرب
+            periodSeconds: 10        # هيجرب كل 10 ثواني
+            timeoutSeconds: 5        # لو الأمر ردش في 5 ثواني يعتبر المحاولة فشلت (بدل ما يعلق دقيقة)
+            failureThreshold: 30     # هيديله 30 محاولة (يعني إجمالي 5 دقائق كاملة للـ Boot)
